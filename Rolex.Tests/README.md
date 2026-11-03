@@ -1,6 +1,6 @@
 # Rolex.Tests
 
-Covers the determinization, unicode escape and `_KeySet` hash fixes in
+Covers the determinization, unicode escape, `_KeySet` hash and `Optional` fixes in
 `Rolex/FA.brick.cs`. Run with:
 
     dotnet test Rolex.Tests\Rolex.Tests.csproj
@@ -47,6 +47,14 @@ obligation, each checked against the behaviour it replaced:
 Plus language sampling over both the determinized and minimized machines,
 including R1C1 references such as `R1048576C16384` (accepted) and `R1048577C1`
 (rejected).
+
+**`OptionalTests`** - the `?` fix. `FA.Optional` joined the start state to the accepting
+states of the expression, so skipping the expression meant standing in the state it ends in,
+with that state's outgoing transitions. When the expression ends in a loop the start state
+inherited it: `(ab*)?a` accepted `ba`. The tests pin the rejected strings, the start
+state's outgoing characters, and the language of the `(X Y*)? X` shape that surfaced it, and
+sweep short strings against the .NET regex engine as an oracle, with `*`, `+` and `{n,m}`
+as controls.
 
 **`EscapeParsingTests`** - the unicode escape fix. `_ParseEscapePart` and
 `_ParseRangeEscapePart` read the four hex digits of a `\uXXXX` or `\xXXXX` escape
