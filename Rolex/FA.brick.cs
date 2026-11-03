@@ -1122,7 +1122,7 @@ accept,compact);pc.Expecting(')');pc.Advance();next=_ParseModifier(next,pc,accep
 result,next},accept,compact);}break;case'|':if(-1!=pc.Advance()){next=Parse(pc,accept,compact);result=FA.Or(new FA[]{result,next},accept,compact);}else
 {result=FA.Optional(result,accept,compact);}break;case'[':var seti=_ParseSet(pc);IEnumerable<KeyValuePair<int,int>>set;if(seti.Key)set=NotRanges(seti.Value);
 else set=ToPairs(seti.Value);next=FA.Set(set,accept);next=_ParseModifier(next,pc,accept,compact);if(null==result)result=next;else{result=FA.Concat(new
- FA[]{result,next},accept,compact);}break;default:ich=pc.Current;next=FA.Literal(new int[]{ich},accept,compact);pc.Advance();next=_ParseModifier(next,
+ FA[]{result,next},accept,compact);}break;default:ich=FA._ReadCodepoint(pc);next=FA.Literal(new int[]{ich},accept,compact);next=_ParseModifier(next,
 pc,accept,compact);if(null==result)result=next;else{result=FA.Concat(new FA[]{result,next},accept,compact);}break;}}}static KeyValuePair<bool,int[]>_ParseSet(LexContext
  pc){var result=new List<int>();pc.EnsureStarted();pc.Expecting('[');pc.Advance();pc.Expecting();var isNot=false;if('^'==pc.Current){isNot=true;pc.Advance();
 pc.Expecting();}var firstRead=true;int firstChar='\0';var readFirstChar=false;var wantRange=false;while(-1!=pc.Current&&(firstRead||']'!=pc.Current)){
@@ -1130,9 +1130,8 @@ if(!wantRange){ if('['==pc.Current){pc.Advance();pc.Expecting();if(':'!=pc.Curre
 var ll=pc.CaptureBuffer.Length;if(!pc.TryReadUntil(':',false))throw new ExpectingException("Expecting character class",pc.Line,pc.Column,pc.Position,pc.FileOrUrl);
 pc.Expecting(':');pc.Advance();pc.Expecting(']');pc.Advance();var cls=pc.GetCapture(ll);int[]ranges;if(!CharacterClasses.Known.TryGetValue(cls,out ranges))
 throw new ExpectingException("Unknown character class \""+cls+"\" specified",pc.Line,pc.Column,pc.Position,pc.FileOrUrl);result.AddRange(ranges);readFirstChar
-=false;wantRange=false;firstRead=false;continue;}}if(!readFirstChar){if('\\'==pc.Current){pc.Advance();firstChar=_ParseRangeEscapePart(pc);}else{firstChar
-=pc.Current;pc.Advance();pc.Expecting();}readFirstChar=true;}else{if('-'==pc.Current){pc.Advance();pc.Expecting();wantRange=true;}else{result.Add(firstChar);
-result.Add(firstChar);readFirstChar=false;}}firstRead=false;}else{if('\\'!=pc.Current){var ch=pc.Current;pc.Advance();pc.Expecting();result.Add(firstChar);
+=false;wantRange=false;firstRead=false;continue;}}if(!readFirstChar){if('\\'==pc.Current){pc.Advance();firstChar=_ParseRangeEscapePart(pc);}else{firstChar=FA._ReadCodepoint(pc);pc.Expecting();}readFirstChar=true;}else{if('-'==pc.Current){pc.Advance();pc.Expecting();wantRange=true;}else{result.Add(firstChar);
+result.Add(firstChar);readFirstChar=false;}}firstRead=false;}else{if('\\'!=pc.Current){var ch=FA._ReadCodepoint(pc);pc.Expecting();result.Add(firstChar);
 result.Add(ch);}else{result.Add(firstChar);pc.Advance();result.Add(_ParseRangeEscapePart(pc));}wantRange=false;readFirstChar=false;}}if(readFirstChar)
 {result.Add(firstChar);result.Add(firstChar);if(wantRange){result.Add('-');result.Add('-');}}pc.Expecting(']');pc.Advance();return new KeyValuePair<bool,
 int[]>(isNot,result.ToArray());}static FA _ParseModifier(FA expr,LexContext pc,int accept,bool compact){var line=pc.Line;var column=pc.Column;var position
@@ -1150,14 +1149,20 @@ if(-1==pc.Advance()||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;b|=_FromH
  unchecked(b);b<<=4;b|=_FromHexChar(pc.Current);if(-1==pc.Advance()||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;b|=_FromHexChar(pc.Current);pc.Advance();return
  unchecked(b);case'u':if(-1==pc.Advance())return'u';ushort u=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);
 u<<=4;if(-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);pc.Advance();return
- unchecked(u);default:int i=pc.Current;pc.Advance();return i;}}static int _ParseRangeEscapePart(LexContext pc){if(-1==pc.Current)return-1;switch(pc.Current)
+ unchecked(u);default:return FA._ReadCodepoint(pc);}}/// <summary>
+/// Reads the code point at the cursor and moves past it. <see cref="LexContext"/> yields UTF-16 units, so a
+/// character above U+FFFF arrives as a high then a low surrogate and has to be put back together.
+/// An unpaired surrogate is returned as it is.
+/// </summary>
+internal static int _ReadCodepoint(LexContext pc){int c=pc.Current;pc.Advance();if(c>=0xD800&&c<=0xDBFF&&pc.Current>=0xDC00&&pc.Current<=0xDFFF){c=char.ConvertToUtf32(unchecked((char)c),unchecked((char)pc.Current));pc.Advance();}return c;}
+static int _ParseRangeEscapePart(LexContext pc){if(-1==pc.Current)return-1;switch(pc.Current)
 {case'0':pc.Advance();return'\0';case'f':pc.Advance();return'\f';case'v':pc.Advance();return'\v';case't':pc.Advance();return'\t';case'n':pc.Advance();
 return'\n';case'r':pc.Advance();return'\r';case'x':if(-1==pc.Advance()||!_IsHexChar(pc.Current))return'x';int b=_FromHexChar(pc.Current);if(-1==pc.Advance()
 ||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;b|=_FromHexChar(pc.Current);if(-1==pc.Advance()||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;
 b|=_FromHexChar(pc.Current);if(-1==pc.Advance()||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;b|=_FromHexChar(pc.Current);pc.Advance();return unchecked(b);case
 'u':if(-1==pc.Advance())return'u';ushort u=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);u<<=4;if
 (-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);pc.Advance();return unchecked(u);
-default:int i=pc.Current;pc.Advance();return i;}}/// <summary>
+default:return FA._ReadCodepoint(pc);}}/// <summary>
 /// Turns packed ranges into unpacked ranges
 /// </summary>
 /// <param name="packedRanges">The ranges to unpack</param>
@@ -1631,10 +1636,9 @@ column,position);}else{result=new RegexOrExpression(result,null);result.SetLocat
 break;case'[':pc.ClearCapture();pc.Advance();pc.Expecting();bool not=false;if('^'==pc.Current){not=true;pc.Advance();pc.Expecting();}var ranges=_ParseRanges(pc);
 pc.Expecting(']');pc.Advance();next=new RegexCharsetExpression(ranges,not);next.SetLocation(line,column,position);next=_ParseModifier(next,pc);if(null
 ==result)result=next;else{result=new RegexConcatExpression(result,next);result.SetLocation(pc.Line,pc.Column,pc.Position);}line=pc.Line;column=pc.Column;
-position=pc.Position;break;default:ich=pc.Current;if(result is RegexLiteralExpression){var cptmp=new int[((RegexLiteralExpression)result).Codepoints.Length
+position=pc.Position;break;default:ich=FA._ReadCodepoint(pc);if(result is RegexLiteralExpression){var cptmp=new int[((RegexLiteralExpression)result).Codepoints.Length
 +1];cptmp[cptmp.Length-1]=ich;Array.Copy(((RegexLiteralExpression)result).Codepoints,cptmp,cptmp.Length-1);((RegexLiteralExpression)result).Codepoints
-=cptmp;next=null;}else{next=new RegexLiteralExpression(new int[]{ich});next.SetLocation(line,column,position);}pc.Advance();if(next!=null){next=_ParseModifier(next,
-pc);}if(null==result)result=next;else{if(next!=null){result=new RegexConcatExpression(result,next);}result.SetLocation(line,column,position);}line=pc.Line;
+=cptmp;next=null;}else{next=new RegexLiteralExpression(new int[]{ich});next.SetLocation(line,column,position);}if(next!=null){next=_ParseModifier(next,pc);}if(null==result)result=next;else{if(next!=null){result=new RegexConcatExpression(result,next);}result.SetLocation(line,column,position);}line=pc.Line;
 column=pc.Column;position=pc.Position;break;}}}static IList<RegexCharsetEntry>_ParseRanges(LexContext pc){pc.EnsureStarted();var result=new List<RegexCharsetEntry>();
 RegexCharsetEntry next=null;bool readDash=false;while(-1!=pc.Current&&']'!=pc.Current){switch(pc.Current){case'[': if(null!=next){result.Add(next);if(readDash)
 result.Add(new RegexCharsetCharEntry('-'));result.Add(new RegexCharsetCharEntry('-'));}pc.Advance();pc.Expecting(':');pc.Advance();var l=pc.CaptureBuffer.Length;
@@ -1646,9 +1650,7 @@ case'S':_ParseCharClassEscape(pc,"^space",result,ref next,ref readDash);break;ca
 case'w':_ParseCharClassEscape(pc,"word",result,ref next,ref readDash);break;case'W':_ParseCharClassEscape(pc,"^word",result,ref next,ref readDash);break;
 default:var ch=_ParseRangeEscapePart(pc);if(null==next)next=new RegexCharsetCharEntry(ch);else if(readDash){result.Add(new RegexCharsetRangeEntry(((RegexCharsetCharEntry)next).Codepoint,
 ch));next=null;readDash=false;}else{result.Add(next);next=new RegexCharsetCharEntry(ch);}break;}break;case'-':pc.Advance();if(null==next){next=new RegexCharsetCharEntry('-');
-readDash=false;}else{if(readDash)result.Add(next);readDash=true;}break;default:if(null==next){next=new RegexCharsetCharEntry(pc.Current);}else{if(readDash)
-{result.Add(new RegexCharsetRangeEntry(((RegexCharsetCharEntry)next).Codepoint,pc.Current));next=null;readDash=false;}else{result.Add(next);next=new RegexCharsetCharEntry(pc.Current);
-}}pc.Advance();break;}}if(null!=next){result.Add(next);if(readDash){next=new RegexCharsetCharEntry('-');result.Add(next);}}return result;}static void _ParseCharClassEscape(LexContext
+readDash=false;}else{if(readDash)result.Add(next);readDash=true;}break;default:var cp=FA._ReadCodepoint(pc);if(null==next){next=new RegexCharsetCharEntry(cp);}else{if(readDash){result.Add(new RegexCharsetRangeEntry(((RegexCharsetCharEntry)next).Codepoint,cp));next=null;readDash=false;}else{result.Add(next);next=new RegexCharsetCharEntry(cp);}}break;}}if(null!=next){result.Add(next);if(readDash){next=new RegexCharsetCharEntry('-');result.Add(next);}}return result;}static void _ParseCharClassEscape(LexContext
  pc,string cls,List<RegexCharsetEntry>result,ref RegexCharsetEntry next,ref bool readDash){if(null!=next){result.Add(next);if(readDash)result.Add(new RegexCharsetCharEntry('-'));
 result.Add(new RegexCharsetCharEntry('-'));}pc.Advance();result.Add(new RegexCharsetClassEntry(cls));next=null;readDash=false;}static RegexExpression _ParseModifier(RegexExpression
  expr,LexContext pc){var line=pc.Line;var column=pc.Column;var position=pc.Position;switch(pc.Current){case'*':expr=new RegexRepeatExpression(expr);expr.SetLocation(line,
@@ -1705,14 +1707,14 @@ case't':pc.Advance();return'\t';case'n':pc.Advance();return'\n';case'r':pc.Advan
 ||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;b|=_FromHexChar(pc.Current);if(-1==pc.Advance()||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;
 b|=_FromHexChar(pc.Current);pc.Advance();return unchecked(b);case'u':if(-1==pc.Advance())return'u';ushort u=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return
  unchecked(u);u|=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return unchecked(u);
-u|=_FromHexChar(pc.Current);pc.Advance();return unchecked(u);default:int i=pc.Current;pc.Advance();return i;}}static int _ParseRangeEscapePart(LexContext pc){if(-1==
+u|=_FromHexChar(pc.Current);pc.Advance();return unchecked(u);default:return FA._ReadCodepoint(pc);}}static int _ParseRangeEscapePart(LexContext pc){if(-1==
 pc.Current)return-1;switch(pc.Current){case'f':pc.Advance();return'\f';case'v':pc.Advance();return'\v';case't':pc.Advance();return'\t';case'n':pc.Advance();
 return'\n';case'r':pc.Advance();return'\r';case'x':if(-1==pc.Advance()||!_IsHexChar(pc.Current))return'x';int b=_FromHexChar(pc.Current);if(-1==pc.Advance()
 ||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;b|=_FromHexChar(pc.Current);if(-1==pc.Advance()||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;
 b|=_FromHexChar(pc.Current);if(-1==pc.Advance()||!_IsHexChar(pc.Current))return unchecked(b);b<<=4;b|=_FromHexChar(pc.Current);pc.Advance();return unchecked(b);case
 'u':if(-1==pc.Advance())return'u';ushort u=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);u<<=4;if
 (-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);u<<=4;if(-1==pc.Advance())return unchecked(u);u|=_FromHexChar(pc.Current);pc.Advance();return unchecked(u);
-default:int i=pc.Current;pc.Advance();return i;}}static int _ReadRangeChar(IEnumerator<int>e){int ch;if('\\'!=e.Current||!e.MoveNext()){return e.Current;
+default:return FA._ReadCodepoint(pc);}}static int _ReadRangeChar(IEnumerator<int>e){int ch;if('\\'!=e.Current||!e.MoveNext()){return e.Current;
 }ch=e.Current;switch(ch){case't':ch='\t';break;case'n':ch='\n';break;case'r':ch='\r';break;case'0':ch='\0';break;case'v':ch='\v';break;case'f':ch='\f';
 break;case'b':ch='\b';break;case'x':if(!e.MoveNext())throw new Exception("Expecting input for escape \\x");ch=e.Current;byte x=_FromHexChar(ch);if(!e.MoveNext())
 {ch=unchecked(x);return ch;}x*=0x10;x+=_FromHexChar(e.Current);ch=unchecked(x);break;case'u':if(!e.MoveNext())throw new Exception("Expecting input for escape \\u");
