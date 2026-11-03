@@ -29,6 +29,14 @@ The `_KeySet.Add` hash fix did not move any of these. It removes duplicate state
 from `ToDfa()`, and every duplicate it removes was one minimization already merged,
 so generated output is untouched - which is what these hashes are here to show.
 
+The `Optional` fix (`x?` skipping a group that ends in a loop) moved the hashes of
+`oom-7-rules` and `full-r1c1`, and no others. Both contain ClosedXML.Parser's
+`INTRA_TABLE_REFERENCE` rule, the only rule in either grammar where `?` follows a group
+ending in a loop (`(X Y*)? X`). Its DFA grew from 689 to 863 states because the old machine
+let the start state inherit the loop, so it accepted `[ a]` and `[ ]`. The other six hashes,
+and every other rule in these two grammars, are unchanged. The two hashes were re-recorded with
+`-Update` and the change checked rule by rule against the build before the fix.
+
 Use `-Update` to re-record the hashes, and only when the tables are meant to
 change.
 
