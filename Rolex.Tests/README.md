@@ -127,6 +127,12 @@ have existed. Two rows moved, the `dfa` stage of `SHEET_RANGE_PREFIX` and
 `SINGLE_SHEET_PREFIX`; their `nfa` and `min` stages did not, which is the signature
 of the bug - minimization was already merging the duplicates away.
 
+The supplementary-character fix, because it corrects what the rules that use an astral range
+mean. Before it a literal character above U+FFFF reached the parser as two surrogate halves, and
+a set such as `[~-퟿` followed by an astral range read as a range ending at `\uD800`.
+Six rows moved, the `nfa`, `dfa` and `min` stages of `SHEET_RANGE_PREFIX` and
+`SINGLE_SHEET_PREFIX`, and no row of a rule without an astral range did.
+
 `Tools/GoldenGen.cs` is excluded from compilation and kept only so the file can
 be reproduced. Re-recording is not a routine action - if these tables change,
 the DFA changed, and that is the thing the suite is meant to stop.

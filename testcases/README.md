@@ -37,6 +37,16 @@ let the start state inherit the loop, so it accepted `[ a]` and `[ ]`. The other
 and every other rule in these two grammars, are unchanged. The two hashes were re-recorded with
 `-Update` and the change checked rule by rule against the build before the fix.
 
+The supplementary-character fix (a literal character above U+FFFF in a pattern is read as one
+code point) moved the hashes of `subsets/rules-5`, `slow-6-rules`, `oom-7-rules` and `full-r1c1`.
+Those four contain the rules that use an astral range: `SINGLE_SHEET_PREFIX`, `SHEET_RANGE_PREFIX`,
+`NAME`, `BANG_NAME`, `USER_DEFINED_FUNCTION_NAME`, `STRING_CONSTANT`, `DDE_ITEM` and
+`INTRA_TABLE_REFERENCE`. Before the fix a range written with the literal characters U+10000 and
+U+10FFFF became their four surrogate halves, and a set such as `[~-퟿` followed by that
+range read as `~-\uD800`, so the generated table was wrong and nothing said so. After it the
+table has the range 65536 to 1114111, as the matcher expects. `rules-1` to `rules-4` use no astral
+range and did not move. The hashes were re-recorded with `-Update`.
+
 Use `-Update` to re-record the hashes, and only when the tables are meant to
 change.
 
