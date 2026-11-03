@@ -46,6 +46,24 @@ jobs:
       - name: Build solution
         run: msbuild Rolex.sln -p:Configuration=Release -v:minimal -nologo -m
 
+      # The generator is a single exe plus its config. Publishing it lets a
+      # consumer vendor a build made from a known commit, with the hash below to
+      # compare against, instead of building Rolex by hand.
+      - name: Stage generator
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item Rolex\bin\Release\rolex.exe, Rolex\bin\Release\rolex.exe.config dist\
+          $hash = (Get-FileHash dist\rolex.exe -Algorithm SHA256).Hash
+          "$hash  rolex.exe" | Set-Content dist\rolex.exe.sha256
+          "rolex.exe SHA-256 $hash" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload generator
+        uses: actions/upload-artifact@v4
+        with:
+          name: rolex-${{ github.sha }}
+          path: dist\*
+          if-no-files-found: error
+
       - name: Test
         run: dotnet test Rolex.Tests\Rolex.Tests.csproj -c Release --no-build --nologo --logger "trx;LogFileName=results.trx"
 
