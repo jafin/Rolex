@@ -59,6 +59,15 @@ namespace Rolex.Tests
                 Assert.False(Accepts(dfa, text), regex + " accepted " + text);
         }
 
+        [Fact]
+        public void The_requested_accept_id_is_kept_for_the_empty_match()
+        {
+            var dfa = FA.Optional(new FA(7), 42).ToDfa();
+
+            Assert.Equal(42, dfa.Match(string.Empty));
+        }
+
+
         /// <summary>
         /// Rolex's pattern syntax is close enough to .NET's for these to be read by both, so the
         /// .NET engine is the oracle: every short string over the alphabet, accepted by both or neither.

@@ -1051,7 +1051,7 @@ public static FA Or(IEnumerable<FA>exprs,int accept=0,bool compact=true){var res
 /// <param name="accept">The accept id</param>
 /// <param name="compact">True to collapse epsilons, false to generate expanded epsilons</param>
 /// <returns>A new machine representing the optional expression</returns>
-public static FA Optional(FA expr,int accept=0,bool compact=true){return Or(new FA[]{expr,null},accept,compact);}/// <summary>
+public static FA Optional(FA expr,int accept=0,bool compact=true){var body=expr.Clone();var acc=body.FillAcceptingStates();for(int ic=acc.Count,i=0;i<ic;++i){acc[i].AcceptSymbol=accept;}return Or(new FA[]{body,null},accept,compact);}/// <summary>
 /// Creates a repetition of the given expression
 /// </summary>
 /// <param name="expr">The expression to repeat</param>
